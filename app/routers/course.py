@@ -31,3 +31,18 @@ async def create_course(
     session.commit()
     session.refresh(db_course)
     return db_course
+
+@router.delete("/delete/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_course(
+    course_id: int, 
+    session: Annotated[Session, Depends(get_session)]
+    ):
+    course = session.get(Course, course_id)
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Course not found"
+            )
+    session.delete(course)
+    session.commit()
+    return {"detail": "Course deleted successfully"}
