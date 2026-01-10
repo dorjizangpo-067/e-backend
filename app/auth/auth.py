@@ -19,8 +19,8 @@ async def register_user(register_data: UserCreateSchema, session: Annotated[Sess
     """
     User registration endpoint
     
-    **register_data**: form data containing user registration details
-    **session**: database session dependency
+    :param **register_data**: form data containing user registration details
+    :type **session**: database session dependency
     """
     # Copy register_data to modify
     user_form = register_data.model_copy()
@@ -48,8 +48,8 @@ async def login_user(login_data: UserLoginSchema, session: Annotated[Session, De
     """
     User login endpoint
     
-    **login_data**: form data containing user login details
-    **session**: database session dependency
+    :param **login_data**: form data containing user login details
+    :type **session**: database session dependency
     """
     creditals_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -88,7 +88,10 @@ async def login_user(login_data: UserLoginSchema, session: Annotated[Session, De
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout_user(request: Request):
     """
-    User logout endpoint
+    Docstring for logout_user
+    
+    :param **request**: FastAPI Request object
+    :type **request**: Request
     """
     # Make sure user is logged in by checking get_current_user
     response = Response()
