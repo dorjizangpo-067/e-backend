@@ -1,20 +1,21 @@
 from typing import Annotated
-from fastapi import Depends, APIRouter, status, HTTPException
-# from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, APIRouter, status, HTTPException, Response, Request
+from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
+from datetime import timedelta
+from sqlalchemy.exc import IntegrityError
 
+from .utilits import create_access_token, hash_password as func_hash_password, verify_password, get_current_user
 from ..schemas.user import UserCreateSchema, UserReadSchema, UserLoginSchema
-from ..dependencies import get_session
-from . import utilits
+from ..dependencies import get_session, Settings
 from ..models.models import User
 
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
-
+settings = Settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # reginster user
 @router.post("/register", response_model=UserReadSchema, status_code=status.HTTP_201_CREATED)
-def register_user(register_data: UserCreateSchema, session: Annotated[Session, Depends(get_session)]):
+async def register_user(register_data: UserCreateSchema, session: Annotated[Session, Depends(get_session)]):
     """
     User registration endpoint
     
@@ -25,19 +26,25 @@ def register_user(register_data: UserCreateSchema, session: Annotated[Session, D
     user_form = register_data.model_copy()
 
     # password hashing
-    hash_password = utilits.hash_password(register_data.password)
+    hash_password = func_hash_password(register_data.password)
     user_form.password = hash_password
 
     # Mapping UserCreateSchema to User model
-    user = User(**user_form.model_dump(exclude_unset=True), hashed_password=hash_password)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    try:
+        user = User(**user_form.model_dump(exclude_unset=True), hashed_password=hash_password)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "User with this email already exists."}
+        )
     return user
 
 # login user
-@router.post("/login", status_code=status.HTTP_202_ACCEPTED, response_model=UserReadSchema)
-def login_user(login_data: UserLoginSchema, session: Annotated[Session, Depends(get_session)]):
+@router.post("/login", status_code=status.HTTP_200_OK)
+async def login_user(login_data: UserLoginSchema, session: Annotated[Session, Depends(get_session)]):
     """
     User login endpoint
     
@@ -54,9 +61,43 @@ def login_user(login_data: UserLoginSchema, session: Annotated[Session, Depends(
         raise creditals_error
 
     # verify password
-    is_valid_password = utilits.verify_password(login_data.password, user.hashed_password)
+    is_valid_password = verify_password(login_data.password, user.hashed_password)
     if not is_valid_password:
         raise creditals_error
 
-    return user
-    
+    # jwt token creation
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": str(user.email), "role": str(user.role)}, 
+        secret_key=settings.secret_key, 
+        algorithm=settings.algorithm, 
+        expires_delta=access_token_expires
+    )
+    # response = Response()
+    response = JSONResponse(content={"message": "Successfully logged in"})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax"
+    )
+    return response
+
+# Logout user
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout_user(request: Request):
+    """
+    User logout endpoint
+    """
+    # Make sure user is logged in by checking get_current_user
+    response = Response()
+    user = get_current_user(request=request, secret_key=settings.secret_key, algorithms=settings.algorithm)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Not authenticated"}
+        )
+    response = JSONResponse(content={"message": "Successfully logged out"})
+    response.delete_cookie(key="access_token")
+    return response
