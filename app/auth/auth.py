@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 from datetime import timedelta
 from sqlalchemy.exc import IntegrityError
 
-from .utilits import create_access_token, hash_password as func_hash_password, verify_password, get_current_user
+from .utilits import create_access_token, hash_password as func_hash_password, verify_password
 from ..schemas.user import UserCreateSchema, UserReadSchema, UserLoginSchema
-from ..dependencies import get_session, Settings
+from ..dependencies import get_session, Settings, get_current_user
 from ..models.models import User
 
 settings = Settings()
@@ -17,10 +17,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=UserReadSchema, status_code=status.HTTP_201_CREATED)
 async def register_user(register_data: UserCreateSchema, session: Annotated[Session, Depends(get_session)]):
     """
-    User registration endpoint
+    User registration endpoint <br>
     
-    **register_data**: form data containing user registration details
-    **session**: database session dependency
+    :param **register_data**: form data containing user registration details <br>
+    :type **session**: database session dependency <br>
     """
     # Copy register_data to modify
     user_form = register_data.model_copy()
@@ -46,10 +46,10 @@ async def register_user(register_data: UserCreateSchema, session: Annotated[Sess
 @router.post("/login", status_code=status.HTTP_200_OK)
 async def login_user(login_data: UserLoginSchema, session: Annotated[Session, Depends(get_session)]):
     """
-    User login endpoint
+    User login endpoint <br>
     
-    **login_data**: form data containing user login details
-    **session**: database session dependency
+    :param **login_data**: form data containing user login details <br>
+    :type **session**: database session dependency <br>
     """
     creditals_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -88,7 +88,10 @@ async def login_user(login_data: UserLoginSchema, session: Annotated[Session, De
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout_user(request: Request):
     """
-    User logout endpoint
+    Docstring for logout_user <br>
+    
+    :param **request**: FastAPI Request object <br>
+    :type **request**: Request <br>
     """
     # Make sure user is logged in by checking get_current_user
     response = Response()
