@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 from datetime import timedelta
 from sqlalchemy.exc import IntegrityError
 
-from .utilits import create_access_token, hash_password as func_hash_password, verify_password, get_current_user
+from .utilits import create_access_token, hash_password as func_hash_password, verify_password
 from ..schemas.user import UserCreateSchema, UserReadSchema, UserLoginSchema
-from ..dependencies import get_session, Settings
+from ..dependencies import get_session, Settings, get_current_user
 from ..models.models import User
 
 settings = Settings()
