@@ -68,7 +68,12 @@ async def login_user(login_data: UserLoginSchema, session: Annotated[Session, De
     # jwt token creation
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": str(user.email), "role": str(user.role)}, 
+        data={
+            "sub": str(user.email), 
+            "role": str(user.role),
+            "id": user.id,
+            "name": (user.name)
+        }, 
         secret_key=settings.secret_key, 
         algorithm=settings.algorithm, 
         expires_delta=access_token_expires
