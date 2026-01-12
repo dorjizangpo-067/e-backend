@@ -1,8 +1,8 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 
-from ..models.models import Course
+from ..models.models import Course, Category
 from ..schemas.course import CourseBaseSchema, CreateCourseSchema, UpdateCourseSchema, ReadCourseSchema
 from ..dependencies import get_session, current_user_dependency, teacher_or_admin_role_dependency, admin_role_dependency
 
@@ -14,131 +14,106 @@ router = APIRouter(
 @router.get("/", response_model=list[ReadCourseSchema])
 async def get_courses(
     session: Annotated[Session, Depends(get_session)], 
-    limit: int = 15, 
+    limit: Annotated[int, Query(le=25)] = 15, 
     offset: int = 0, 
-
-    admin: bool = Depends(admin_role_dependency)
+    _: bool = Depends(admin_role_dependency)
     ):
-    """
-    Retrieve a list of courses with pagination.<br>
-    
-    :param **session**: Database session
-    :type **session**: Annotated[Session, Depends(get_session)]
-    :param **limit**: Number of courses to retrieve
-    :type **limit**: int
-    :param **offset**: Number of courses to skip
-    :type **offset**: int
-
-    **dependencies**: <br>
-    - **current_user**: Get the current authenticated user <br>
-    """
+    """Retrieve a list of courses with pagination."""
     courses = session.exec(select(Course).offset(offset).limit(limit)).all()
-    if not courses:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="No courses found"
-            )
     return courses
 
-@router.post("/create", response_model=CourseBaseSchema)
+@router.post("/create", response_model=CourseBaseSchema, status_code=status.HTTP_201_CREATED)
 async def create_course(
-    course: CreateCourseSchema, 
+    course_in: CreateCourseSchema, 
     session: Annotated[Session, Depends(get_session)],
-
-    teacher_or_admin_role:bool = Depends(teacher_or_admin_role_dependency),
-    current_user:dict = Depends(current_user_dependency)
-    ):
-    """
-    Create a new course.<br>
+    current_user: Annotated[dict, Depends(current_user_dependency)],
+    _: bool = Depends(teacher_or_admin_role_dependency),
+):
+    """Create a new course and assign it to the current user."""
     
-    :param course: Course data to create
-    :type course: CreateCourseSchema
-    :param session: Database session
-    :type session: Annotated[Session, Depends(get_session)]
+    # Use a single query to find the specific category
+    category = session.exec(
+        select(Category).where(Category.name == course_in.category)
+    ).first()
 
-    **dependencies**: <br>
-    - **current_user**: Get the current authenticated user <br>
-    - **teacher_role**: Ensure the user has teacher or admin role <br>
-    """
-    course_with_author_id = course.model_dump(exclude_unset=True)
-    course_with_author_id.update({"author_id": int(current_user.get("id"))})
-    print("course_with_author_id", course_with_author_id)
-    db_course = Course(**course_with_author_id)
+    if not category:
+        all_categories = session.exec(select(Category)).all()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": f"Invalid category '{course_in.category}'",
+                "available_categories": [c.name for c in all_categories]
+            }
+        )
+
+    # Prepare data and exclude 'category' string to replace with 'category_id'
+    course_data = course_in.model_dump(exclude={"category"})
+    db_course = Course(
+        **course_data,
+        category_id=category.id,
+        author_id=current_user["id"]
+    )
+
     session.add(db_course)
     session.commit()
     session.refresh(db_course)
     return db_course
 
-@router.delete("/delete/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_course(
     course_id: int, 
     session: Annotated[Session, Depends(get_session)],
-
-    teacher_role:bool = Depends(teacher_or_admin_role_dependency),
-    current_user:dict = Depends(current_user_dependency)
+    current_user:Annotated[dict, Depends(current_user_dependency)],
+    _:bool = Depends(teacher_or_admin_role_dependency)
     ):
-    """
-    Delete a course by its ID.<br>
-    :param **course_id**: course ID <br>
-    :type **course_id**: int <br>
-    :param **session**: Database session <br>
-    :type **session**: Annotated[Session, Depends(get_session)] <br>
-
-    **dependencies**: <br>
-    - **current_user**: Get the current authenticated user <br>
-    - **teacher_role**: Ensure the user has teacher or admin role <br>
-    """
+    """Delete a course by its ID"""
     course = session.get(Course, course_id)
+
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Course not found"
             )
+    
+    # Ownership check
     if course.author_id != current_user.get("id"):
         raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail="You are Not Creator of this course!"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this course"
             )
+    
     session.delete(course)
     session.commit()
     return {"detail": "Course deleted successfully"}
 
-@router.patch("/update/{course_id}", response_model=CourseBaseSchema)
+@router.patch("/{course_id}", response_model=CourseBaseSchema)
 async def update_course(
     course_id: int, 
     course_update: UpdateCourseSchema, 
     session: Annotated[Session, Depends(get_session)],
-
-    teacher_role:bool = Depends(teacher_or_admin_role_dependency),
-    current_user:dict = Depends(current_user_dependency)
+    current_user:dict = Depends(current_user_dependency),
+    _:bool = Depends(teacher_or_admin_role_dependency),
     ):
-    """
-    Update a course by its ID.<br>
-    
-    :param **course_id**: course ID <br>
-    :type **course_id**: int <br>
-    :param **course_update**: Course update data <br>
-    :type **course_update**: UpdateCourseSchema <br>
-    :param **session**: Database session <br>
-    :type **session**: Annotated[Session, Depends(get_session)] <br>
-
-    **dependencies**: <br>
-    - **current_user**: Get the current authenticated user <br>
-    - **teacher_role**: Ensure the user has teacher or admin role <br>
-    """
+    """Update a course by its ID."""
     course = session.get(Course, course_id)
+
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Course not found"
             )
+    
+    # Ownership check
     if course.author_id != current_user.get("id"):
         raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail="You are Not Creator of this course!"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to edit this course"
         )
+    
+    # Apply partial updates
     course_data = course_update.model_dump(exclude_unset=True)
     course.sqlmodel_update(course_data)
+
     session.add(course)
     session.commit()
     session.refresh(course)
