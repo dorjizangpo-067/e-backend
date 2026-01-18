@@ -1,22 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session, select
 from typing import Annotated
 
 from ..models.models import Category
-from ..dependencies import get_session, admin_role_dependency
+from ..dependencies import get_session, is_admin
 from ..schemas.category import CategoryBaseSchema
+from ..limiter import limiter
 
 router = APIRouter(
     prefix="/categories", 
     tags=["categories"]
     )
 
+
 @router.post("/create", response_model=CategoryBaseSchema)
+@limiter.limit("10/minute")
 async def create_category(
+    request: Request,
     category: CategoryBaseSchema,
 
     session: Annotated[Session, Depends(get_session)],
-    admn = Depends(admin_role_dependency)
+    _ = Depends(is_admin)
     ):
     db_category = Category(**category.model_dump(exclude_unset=True))
     session.add(db_category)

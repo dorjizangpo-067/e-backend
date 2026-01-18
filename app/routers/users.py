@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from ..limiter import limiter
 
 router = APIRouter(
     prefix="/users",
@@ -6,5 +8,6 @@ router = APIRouter(
 )
 
 @router.get("/")
-async def get_users():
+@limiter.limit("10/minute")
+async def get_users(request: Request):
     return {"message": "List of users"}

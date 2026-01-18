@@ -7,15 +7,21 @@ from sqlalchemy.exc import IntegrityError
 
 from .utilits import create_access_token, hash_password as func_hash_password, verify_password
 from ..schemas.user import UserCreateSchema, UserReadSchema, UserLoginSchema
-from ..dependencies import get_session, Settings, get_current_user
+from ..dependencies import get_session, Settings, get_current_user, current_user_dependency
 from ..models.models import User
+from ..limiter import limiter
 
 settings = Settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # reginster user
 @router.post("/register", response_model=UserReadSchema, status_code=status.HTTP_201_CREATED)
-async def register_user(register_data: UserCreateSchema, session: Annotated[Session, Depends(get_session)]):
+@limiter.limit("5/minute")
+async def register_user(
+    request: Request,
+    register_data: UserCreateSchema,
+    session: Annotated[Session, Depends(get_session)]
+    ):
     """
     User registration endpoint <br>
     
@@ -47,12 +53,14 @@ async def register_user(register_data: UserCreateSchema, session: Annotated[Sess
         )
     return user
 
+
 # login user
 @router.post("/login", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def login_user(
+    request: Request,
     login_data: UserLoginSchema,
     session: Annotated[Session, Depends(get_session)],
-    request: Request
     ):
     """
     User login endpoint <br>
@@ -81,6 +89,8 @@ async def login_user(
     if not is_valid_password:
         raise creditals_error
 
+    response = JSONResponse(content={"message": "Successfully logged in"})
+
     # jwt token creation
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -103,25 +113,32 @@ async def login_user(
         secure=True,
         samesite="lax"
     )
+    request.state.user = user
     return response
 
 # Logout user
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout_user(request: Request):
+@limiter.limit("5/minute")
+async def logout_user(
+    request: Request,
+    # ensures only logged-in users can reach this code
+    user_data: Annotated[dict, Depends(current_user_dependency)]
+    ):
     """
-    Docstring for logout_user <br>
-    
-    :param **request**: FastAPI Request object <br>
-    :type **request**: Request <br>
+    User logout endpoint.
     """
-    # Make sure user is logged in by checking get_current_user
-    response = Response()
-    user = get_current_user(request=request, secret_key=settings.secret_key, algorithms=settings.algorithm)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Not authenticated"}
-        )
-    response = JSONResponse(content={"message": "Successfully logged out"})
-    response.delete_cookie(key="access_token")
+    # Create the response object FIRST
+    response = JSONResponse(content={"message": f"Goodbye {user_data.get('name')}, successfully logged out"})
+
+    # Delete the cookie
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=True,
+        samesite="lax"
+    )
+
+    # Clear the state (the "backpack")
+    request.state.user = None
+
     return response
