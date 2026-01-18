@@ -59,15 +59,15 @@ async def current_user_dependency(request: Request) -> dict | None:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
         )
+    request.state.user = user
     return user
 
 # get current_user_role
 async def current_user_role(current_user: Annotated[dict, Depends(current_user_dependency)]) -> str:
     role = current_user.get("role")
-    print("current user role:"+role)
     return role
 
-async def teacher_or_admin_role_dependency(current_role: Annotated[str, Depends(current_user_role)]):
+async def is_teacher_or_admin(current_role: Annotated[str, Depends(current_user_role)]):
     if current_role not in ["teacher", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -75,7 +75,7 @@ async def teacher_or_admin_role_dependency(current_role: Annotated[str, Depends(
         )
     return True
 
-async def admin_role_dependency(current_role: Annotated[str, Depends(current_user_role)]):
+async def is_admin(current_role: Annotated[str, Depends(current_user_role)]):
     if current_role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

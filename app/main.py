@@ -1,8 +1,11 @@
 from fastapi import FastAPI
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from .routers import category, users, course
 from .auth import auth
 from .database import create_db_and_tables
+from .limiter import limiter, custom_rate_limit_handler
 
 app = FastAPI(
     title="E-Learning Platform API",
@@ -13,6 +16,10 @@ app = FastAPI(
         "email": "dorjizangpo75@gmail.com"
     }
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 @app.on_event("startup") 
 def on_startup(): 
