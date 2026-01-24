@@ -35,7 +35,3 @@ app.include_router(users.router)
 app.include_router(course.router)
 app.include_router(category.router)
 app.include_router(auth.router)
-
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
