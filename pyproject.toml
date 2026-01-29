@@ -27,3 +27,6 @@ dependencies = [
     "httpx",              # Only keep if your backend calls other APIs
     "pwdlib[argon2]>=0.3.0",
 ]
+
+[tool.ruff]
+lint.extend-select = ["FAST", "ASYNC", "T20", "AIR", "I", "Q"]
