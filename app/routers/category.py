@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, Request
-from sqlmodel import Session
 from typing import Annotated
 
-from ..models.categories import Category
+from fastapi import APIRouter, Depends, Request
+from sqlmodel import Session
+
 from ..dependencies import get_session, is_admin
-from ..schemas.category import CategoryBaseSchema
 from ..limiter import limiter
+from ..models.categories import Category
+from ..schemas.category import CategoryBaseSchema
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 

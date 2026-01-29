@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
 from typing import Literal
+
+from pydantic import BaseModel, EmailStr
 
 
 class UserBaseSchema(BaseModel):

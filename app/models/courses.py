@@ -1,7 +1,9 @@
 from __future__ import annotations
-from sqlmodel import SQLModel, Field, Relationship
+
 from typing import TYPE_CHECKING
+
 from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .categories import Category

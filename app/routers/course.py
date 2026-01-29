@@ -1,22 +1,23 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlmodel import Session, select
 
+from ..dependencies import (
+    current_user_dependency,
+    get_session,
+    is_admin,
+    is_teacher_or_admin,
+)
+from ..limiter import limiter
 from ..models.categories import Category
 from ..models.courses import Course
 from ..schemas.course import (
     CourseBaseSchema,
     CreateCourseSchema,
-    UpdateCourseSchema,
     ReadCourseSchema,
+    UpdateCourseSchema,
 )
-from ..dependencies import (
-    get_session,
-    current_user_dependency,
-    is_teacher_or_admin,
-    is_admin,
-)
-from ..limiter import limiter
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -29,7 +30,7 @@ def get_courses(
     session: Annotated[Session, Depends(get_session)],
     limit: Annotated[int, Query(le=25)] = 15,
     offset: int = 0,
-    _: bool = Depends(is_admin),
+    _=Annotated[bool, Depends(is_admin)],
 ):
     """Retrieve a list of courses with pagination."""
     courses = session.exec(select(Course).offset(offset).limit(limit)).all()
@@ -46,7 +47,7 @@ def create_course(
     course_in: CreateCourseSchema,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    _: bool = Depends(is_teacher_or_admin),
+    _=Annotated[bool, Depends(is_teacher_or_admin)],
 ):
     """Create a new course and assign it to the current user."""
 
@@ -83,7 +84,7 @@ def delete_course(
     course_id: int,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    _: bool = Depends(is_teacher_or_admin),
+    _=Annotated[bool, Depends(is_teacher_or_admin)],
 ):
     """Delete a course by its ID"""
     course = session.get(Course, course_id)
@@ -112,8 +113,8 @@ def update_course(
     course_id: int,
     course_update: UpdateCourseSchema,
     session: Annotated[Session, Depends(get_session)],
-    current_user: dict = Depends(current_user_dependency),
-    _: bool = Depends(is_teacher_or_admin),
+    current_user: Annotated[dict, Depends(current_user_dependency)],
+    _=Annotated[bool, Depends(is_teacher_or_admin)],
 ):
     """Update a course by its ID."""
     course = session.get(Course, course_id)

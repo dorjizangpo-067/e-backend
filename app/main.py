@@ -1,13 +1,14 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .routers import category, users, course
 from .auth import auth
 from .database import create_db_and_tables, engine
-from .limiter import limiter, custom_rate_limit_handler
+from .limiter import custom_rate_limit_handler, limiter
+from .routers import category, course, users
 
 
 @asynccontextmanager

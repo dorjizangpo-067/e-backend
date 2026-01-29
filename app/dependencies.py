@@ -1,13 +1,14 @@
-import jwt
-from fastapi import Request, Depends, HTTPException, status
-from sqlmodel import Session
 from typing import Annotated
 
+import jwt
+from fastapi import Depends, HTTPException, Request, status
 from jwt.exceptions import (
     ExpiredSignatureError,
-    InvalidTokenError,
     InvalidSignatureError,
+    InvalidTokenError,
 )
+from sqlmodel import Session
+
 from .database import engine
 from .env_loader import settings
 
@@ -51,7 +52,6 @@ def get_current_user(
 async def current_user_dependency(request: Request) -> dict | None:
     user = get_current_user(request, settings.secret_key, [settings.algorithm])
     if user is None:
-        print("Current User:", user)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

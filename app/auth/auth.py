@@ -1,21 +1,23 @@
-from typing import Annotated
-from fastapi import Depends, APIRouter, status, HTTPException, Request
-from fastapi.responses import JSONResponse
-from sqlmodel import Session, select
 from datetime import timedelta
-from sqlalchemy.exc import IntegrityError
+from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
+
+from ..dependencies import current_user_dependency, get_current_user, get_session
+from ..env_loader import settings
+from ..limiter import limiter
+from ..models.users import User
+from ..schemas.user import UserCreateSchema, UserLoginSchema, UserReadSchema
 from .utilits import (
     create_access_token,
-    hash_password as func_hash_password,
     verify_password,
 )
-from ..schemas.user import UserCreateSchema, UserReadSchema, UserLoginSchema
-from ..dependencies import get_session, get_current_user, current_user_dependency
-from ..models.users import User
-from ..limiter import limiter
-from ..env_loader import settings
-
+from .utilits import (
+    hash_password as func_hash_password,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
