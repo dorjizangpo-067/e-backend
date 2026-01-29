@@ -14,9 +14,9 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[ReadCourseSchema])
-@limiter.limit("5/second", exempt_when=is_admin)   # type: ignore # Allows a quick 'burst' of 5 clicks
-@limiter.limit("100/hour", exempt_when=is_admin)   # type: ignore # But stops long-term heavy usage
+@router.get("/", response_model=dict[str, list[ReadCourseSchema]])
+@limiter.limit("5/second") # Allows a quick 'burst' of 5 clicks
+@limiter.limit("100/hour") # But stops long-term heavy usage
 def get_courses(
     request: Request, # for Limiter to perform
     session: Annotated[Session, Depends(get_session)], 
@@ -29,9 +29,9 @@ def get_courses(
     return {"courses": courses}
 
 
-@router.post("/create", response_model=CourseBaseSchema, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/second", exempt_when=is_admin)  # type: ignore
-@limiter.limit("100/hour", exempt_when=is_admin)  # type: ignore
+@router.post("/", response_model=dict[str, CourseBaseSchema], status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/second")  # type: ignore
+@limiter.limit("100/hour")  # type: ignore
 def create_course(
     request: Request,
     course_in: CreateCourseSchema, 
@@ -70,7 +70,7 @@ def create_course(
 
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
-@limiter.limit("2/minute", exempt_when=is_admin) # type: ignore
+@limiter.limit("2/minute") # type: ignore
 def delete_course(
     request: Request,
     course_id: int, 
@@ -99,8 +99,8 @@ def delete_course(
     return {"detail": "Course deleted successfully"}
 
 
-@router.patch("/{course_id}", response_model=CourseBaseSchema)
-@limiter.limit("10/minute") # Very stric
+@router.patch("/{course_id}", response_model=dict[str, CourseBaseSchema])
+@limiter.limit("10/minute") # Very strict
 def update_course(
     request: Request,
     course_id: int, 
