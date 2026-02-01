@@ -12,7 +12,7 @@ from .routers import category, course, users
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     create_db_and_tables()
     yield  # App runs here
     engine.dispose()

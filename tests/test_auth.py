@@ -1,10 +1,12 @@
 import pytest
+from httpx import AsyncClient
+from sqlmodel import Session
 
 from app.schemas.user import UserCreateSchema
 
 
 @pytest.mark.asyncio
-async def test_register_user(client, session):
+async def test_register_user(client: AsyncClient, session: Session) -> None:
     user_data = {
         "name": "Test User",
         "email": "test@example.com",
@@ -19,7 +21,7 @@ async def test_register_user(client, session):
 
 
 @pytest.mark.asyncio
-async def test_register_existing_user(client, session):
+async def test_register_existing_user(client: AsyncClient, session: Session) -> None:
     user_data = {
         "name": "Test User",
         "email": "existing@example.com",
@@ -34,7 +36,7 @@ async def test_register_existing_user(client, session):
 
 
 @pytest.mark.asyncio
-async def test_login_user(client, session):
+async def test_login_user(client: AsyncClient, session: Session) -> None:
     # Register first
     user_data = {
         "name": "Login User",
@@ -51,7 +53,7 @@ async def test_login_user(client, session):
 
 
 @pytest.mark.asyncio
-async def test_login_invalid_credentials(client, session):
+async def test_login_invalid_credentials(client: AsyncClient, session: Session) -> None:
     login_data = {"email": "wrong@example.com", "password": "wrongpassword"}
     response = await client.post("/auth/login", json=login_data)
     assert response.status_code == 401

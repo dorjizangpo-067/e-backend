@@ -31,7 +31,7 @@ async def register_user(
     request: Request,
     register_data: UserCreateSchema,
     session: Annotated[Session, Depends(get_session)],
-):
+) -> User:
     """
     User registration endpoint <br>
 
@@ -72,7 +72,7 @@ async def login_user(
     request: Request,
     login_data: UserLoginSchema,
     session: Annotated[Session, Depends(get_session)],
-):
+) -> User:
     """
     User login endpoint <br>
 
@@ -117,8 +117,6 @@ async def login_user(
         algorithm=settings.algorithm,
         expires_delta=access_token_expires,
     )
-    # response = Response()
-    response = JSONResponse(content={"message": "Successfully logged in"})
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -137,7 +135,7 @@ async def logout_user(
     request: Request,
     # ensures only logged-in users can reach this code
     user_data: Annotated[dict, Depends(current_user_dependency)],
-):
+) -> JSONResponse:
     """
     User logout endpoint.
     """

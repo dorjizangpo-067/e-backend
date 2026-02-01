@@ -13,7 +13,7 @@ from .database import engine
 from .env_loader import settings
 
 
-def get_session():
+def get_session() -> Session:
     with Session(engine) as session:
         yield session
 
@@ -23,8 +23,7 @@ def verify_access_token(
 ) -> dict | None:
     """Verify a JWT access token and return the payload if valid."""
     try:
-        data = jwt.decode(token, secret_key, algorithms=algorithms)
-        return data
+        return jwt.decode(token, secret_key, algorithms=algorithms)
     except ExpiredSignatureError:
         return None
     except InvalidSignatureError:
@@ -64,11 +63,12 @@ async def current_user_dependency(request: Request) -> dict | None:
 async def current_user_role(
     current_user: Annotated[dict, Depends(current_user_dependency)],
 ) -> str | None:
-    role = current_user.get("role")
-    return role
+    return current_user.get("role")
 
 
-async def is_teacher_or_admin(current_role: Annotated[str, Depends(current_user_role)]):
+async def is_teacher_or_admin(
+    current_role: Annotated[str, Depends(current_user_role)],
+) -> bool:
     if current_role not in ["teacher", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Operation not permitted"
@@ -76,7 +76,7 @@ async def is_teacher_or_admin(current_role: Annotated[str, Depends(current_user_
     return True
 
 
-async def is_admin(current_role: Annotated[str, Depends(current_user_role)]):
+async def is_admin(current_role: Annotated[str, Depends(current_user_role)]) -> bool:
     if current_role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Operation not permitted"

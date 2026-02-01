@@ -11,7 +11,7 @@ from app.main import app
 
 # Use in-memory SQLite database for testing
 @pytest.fixture(name="session")
-def session_fixture():
+def session_fixture() -> Session:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -21,8 +21,8 @@ def session_fixture():
 
 
 @pytest.fixture(name="client")
-async def client_fixture(session: Session):
-    def get_session_override():
+async def client_fixture(session: Session) -> AsyncClient:
+    def get_session_override() -> Session:
         return session
 
     app.dependency_overrides[get_session] = get_session_override

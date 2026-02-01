@@ -1,4 +1,6 @@
 import pytest
+from httpx import AsyncClient
+from sqlmodel import Session
 
 from app.auth.utilits import create_access_token
 from app.env_loader import settings
@@ -8,7 +10,7 @@ from app.models.users import User
 
 
 @pytest.fixture
-def auth_headers(session):
+def auth_headers(session: Session) -> dict[str, str]:
     user = User(
         name="Teacher",
         email="teacher@example.com",
@@ -27,7 +29,9 @@ def auth_headers(session):
 
 
 @pytest.mark.asyncio
-async def test_create_course(client, session, auth_headers):
+async def test_create_course(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     # Create category first
     category = Category(name="Programming")
     session.add(category)
@@ -48,7 +52,7 @@ async def test_create_course(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_get_courses(client, session):
+async def test_get_courses(client: AsyncClient, session: Session) -> None:
     # Create course manually
     user = User(
         name="Author", email="author@example.com", role="teacher", hashed_password="ht"
@@ -78,7 +82,9 @@ async def test_get_courses(client, session):
 
 
 @pytest.mark.asyncio
-async def test_delete_course(client, session, auth_headers):
+async def test_delete_course(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     # Create category and course owned by the auth_headers user
     category = Category(name="Programming")
     session.add(category)
@@ -117,7 +123,9 @@ async def test_delete_course(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_create_course_invalid_category(client, session, auth_headers):
+async def test_create_course_invalid_category(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     course_data = {
         "title": "Bad Course",
         "description": "Desc",
@@ -137,13 +145,17 @@ async def test_create_course_invalid_category(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_delete_course_not_found(client, session, auth_headers):
+async def test_delete_course_not_found(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     response = await client.delete("/courses/9999", headers=auth_headers)
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_course_forbidden(client, session, auth_headers):
+async def test_delete_course_forbidden(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     # Create course by another user
     other_user = User(
         name="Other", email="other@ex.com", role="teacher", hashed_password="pw"
@@ -170,7 +182,9 @@ async def test_delete_course_forbidden(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_update_course(client, session, auth_headers):
+async def test_update_course(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     # Create category and course owned by the auth_headers user
     category = Category(name="Programming")
     session.add(category)
@@ -203,7 +217,9 @@ async def test_update_course(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_update_course_not_found(client, session, auth_headers):
+async def test_update_course_not_found(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     response = await client.patch(
         "/courses/9999", json={"title": "New"}, headers=auth_headers
     )
@@ -211,7 +227,9 @@ async def test_update_course_not_found(client, session, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_update_course_forbidden(client, session, auth_headers):
+async def test_update_course_forbidden(
+    client: AsyncClient, session: Session, auth_headers: dict[str, str]
+) -> None:
     other_user = User(
         name="Other", email="other2@ex.com", role="teacher", hashed_password="pw"
     )

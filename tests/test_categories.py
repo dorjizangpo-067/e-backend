@@ -1,4 +1,6 @@
 import pytest
+from httpx import AsyncClient
+from sqlmodel import Session
 
 from app.auth.utilits import create_access_token
 from app.env_loader import settings
@@ -6,7 +8,7 @@ from app.models.users import User
 
 
 @pytest.fixture
-def admin_headers(session):
+def admin_headers(session: Session) -> dict[str, str]:
     user = User(
         name="Admin", email="admin@example.com", role="admin", hashed_password="hashed"
     )
@@ -25,7 +27,9 @@ def admin_headers(session):
 
 
 @pytest.mark.asyncio
-async def test_create_category(client, session, admin_headers):
+async def test_create_category(
+    client: AsyncClient, session: Session, admin_headers: dict[str, str]
+) -> None:
     category_data = {"name": "New Category"}
     response = await client.post(
         "/categories/create", json=category_data, headers=admin_headers

@@ -1,4 +1,6 @@
 import pytest
+from httpx import AsyncClient
+from sqlmodel import Session
 
 from app.auth.utilits import create_access_token
 from app.env_loader import settings
@@ -6,7 +8,7 @@ from app.models.users import User
 
 
 @pytest.fixture
-def student_headers(session):
+def student_headers(session: Session) -> dict[str, str]:
     user = User(
         name="Student",
         email="student@example.com",
@@ -25,7 +27,9 @@ def student_headers(session):
 
 
 @pytest.mark.asyncio
-async def test_admin_required_endpoint_forbidden(client, session, student_headers):
+async def test_admin_required_endpoint_forbidden(
+    client: AsyncClient, session: Session, student_headers: dict[str, str]
+) -> None:
     # /categories/create requires admin
     response = await client.post(
         "/categories/create", json={"name": "Forbidden"}, headers=student_headers
@@ -34,7 +38,9 @@ async def test_admin_required_endpoint_forbidden(client, session, student_header
 
 
 @pytest.mark.asyncio
-async def test_teacher_required_endpoint_forbidden(client, session, student_headers):
+async def test_teacher_required_endpoint_forbidden(
+    client: AsyncClient, session: Session, student_headers: dict[str, str]
+) -> None:
     # Create category otherwise we get 404 from body before permission check failure?
     # (Checking if permission check is indeed bypassed or if verify order is weird)
     from app.models.categories import Category

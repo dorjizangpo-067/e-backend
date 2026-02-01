@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from ..limiter import limiter
 
@@ -7,6 +8,6 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/")
 @limiter.limit("10/minute")
-def get_users(request: Request):
+def get_users(request: Request) -> JSONResponse:
     """get all users"""
     return {"message": "List of users"}

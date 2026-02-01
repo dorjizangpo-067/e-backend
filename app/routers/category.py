@@ -18,7 +18,7 @@ def create_category(
     category: CategoryBaseSchema,
     session: Annotated[Session, Depends(get_session)],
     _=Depends(is_admin),  # noqa: ANN001
-):
+) -> CategoryBaseSchema:
     """Add category by admin"""
     db_category = Category(**category.model_dump(exclude_unset=True))
     session.add(db_category)

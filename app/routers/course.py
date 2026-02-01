@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
 from ..dependencies import (
@@ -30,8 +31,8 @@ def get_courses(
     session: Annotated[Session, Depends(get_session)],
     limit: Annotated[int, Query(le=25)] = 15,
     offset: int = 0,
-    _=Annotated[bool, Depends(is_admin)],
-):
+    _=Annotated[bool, Depends(is_admin)],  # noqa: ANN001
+) -> JSONResponse:
     """Retrieve a list of courses with pagination."""
     courses = session.exec(select(Course).offset(offset).limit(limit)).all()
     return {"courses": courses}
@@ -48,7 +49,7 @@ def create_course(
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
     is_authorized: bool = Depends(is_teacher_or_admin),
-):
+) -> JSONResponse:
     """Create a new course and assign it to the current user."""
 
     category = session.exec(
@@ -84,8 +85,8 @@ def delete_course(
     course_id: int,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    _=Annotated[bool, Depends(is_teacher_or_admin)],
-):
+    _=Annotated[bool, Depends(is_teacher_or_admin)],  # noqa: ANN001
+) -> JSONResponse:
     """Delete a course by its ID"""
     course = session.get(Course, course_id)
 
@@ -114,8 +115,8 @@ def update_course(
     course_update: UpdateCourseSchema,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    _=Annotated[bool, Depends(is_teacher_or_admin)],
-):
+    _=Annotated[bool, Depends(is_teacher_or_admin)],  # noqa: ANN001
+) -> JSONResponse:
     """Update a course by its ID."""
     course = session.get(Course, course_id)
 

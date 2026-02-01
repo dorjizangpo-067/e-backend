@@ -1,10 +1,12 @@
 import pytest
+from httpx import AsyncClient
+from sqlmodel import Session
 
 from app.models.users import User
 
 
 @pytest.mark.asyncio
-async def test_get_users(client, session):
+async def test_get_users(client: AsyncClient, session: Session) -> None:
     # Create a user first
     user = User(
         name="Test User",

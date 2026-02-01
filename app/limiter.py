@@ -6,7 +6,9 @@ from slowapi.util import get_remote_address
 
 
 # custom handler
-async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+async def custom_rate_limit_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
     return JSONResponse(
         status_code=429,
         content={
@@ -17,7 +19,7 @@ async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
     )
 
 
-def get_smart_key(request: Request):
+def get_smart_key(request: Request) -> str:
     user: dict | None = getattr(request.state, "user", None)
     if user:
         return f"user_{user.get(id)}"
@@ -25,4 +27,4 @@ def get_smart_key(request: Request):
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=get_smart_key)
+limiter = Limiter(key_func=get_smart_key, default_limits=["10/minute"])
