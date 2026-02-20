@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy.orm import relationship
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from ..database import Base
 
 if TYPE_CHECKING:
     from .courses import Course
 
 
-class Category(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str
+class Category(Base):
+    __tablename__ = "category"
 
-    courses: List["Course"] = Relationship(
-        sa_relationship=relationship("Course", back_populates="category")
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(30))
+
+    courses: Mapped[List[Course]] = relationship(back_populates="category")

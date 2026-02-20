@@ -1,9 +1,22 @@
-from sqlmodel import SQLModel, create_engine
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from .env_loader import settings
 
-engine = create_engine(settings.postgresql_url)
+engine = create_async_engine(settings.postgresql_url)
 
 
-def create_db_and_tables() -> None:
-    SQLModel.metadata.create_all(engine)
+class Base(DeclarativeBase):
+    pass
+
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session

@@ -7,26 +7,25 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]",
     "uvicorn[standard]",
-    "psycopg2",
-    "sqlmodel",
+    "asyncpg>=0.31.0",
     "pyjwt",
     "argon2-cffi",
     "pydantic-settings",
     "python-dotenv",
     "slowapi>=0.1.9",
     "pwdlib>=0.3.0",
-    "pytest>=9.0.2",
+    "sqlalchemy>=2.0.46",
 ]
-optional-dependencies = { 
-    dev = [
+
+[project.optional-dependencies]
+dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
-    ], 
-    prod = [
-        "gunicorn",
-    ]
-}
+]
+prod = [
+    "gunicorn",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

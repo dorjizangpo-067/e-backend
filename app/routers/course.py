@@ -1,12 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlmodel import Session, select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..database import get_db
 from ..dependencies import (
     current_user_dependency,
-    get_session,
-    is_admin,
     is_teacher_or_admin,
 )
 from ..limiter import limiter
@@ -25,15 +25,16 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 @router.get("/", response_model=dict[str, list[ReadCourseSchema]])
 @limiter.limit("5/second")
 @limiter.limit("100/hour")
-def get_courses(
+async def get_courses(
     request: Request,  # for Limiter to perform
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    is_authorized: Annotated[bool, Depends(current_user_dependency)],
     limit: Annotated[int, Query(le=25)] = 15,
     offset: int = 0,
-    is_authorized: bool = Depends(is_admin),
 ) -> dict:
     """Retrieve a list of courses with pagination."""
-    courses = session.exec(select(Course).offset(offset).limit(limit)).all()
+    result = await db.execute(select(Course).offset(offset).limit(limit))
+    courses = result.scalars()
     return {"courses": courses}
 
 
@@ -42,52 +43,53 @@ def get_courses(
 )
 @limiter.limit("3/second")
 @limiter.limit("100/hour")
-def create_course(
+async def create_course(
     request: Request,
     course_in: CreateCourseSchema,
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    is_authorized: bool = Depends(is_teacher_or_admin),
+    is_authorized: Annotated[bool, Depends(is_teacher_or_admin)],
 ) -> dict:
     """Create a new course and assign it to the current user."""
 
-    category = session.exec(
-        select(Category).where(Category.name == course_in.category)
-    ).first()
+    stmt = select(Category).where(Category.name == course_in.category)
+    result = await db.execute(stmt)
+    category = result.scalar_one_or_none()
 
     if not category:
-        all_categories = session.exec(select(Category)).all()
+        categories_result = await db.execute(select(Category.name))
+        all_categories = categories_result.scalars().all()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "error": f"Invalid category '{course_in.category}'",
-                "available_categories": [c.name for c in all_categories],
+                "available_categories": all_categories,
             },
         )
 
     # Prepare data and exclude 'category' string to replace with 'category_id'
     course_data = course_in.model_dump(exclude={"category"})
     db_course = Course(
-        **course_data, category_id=category.id, author_id=current_user["id"]
+        **course_data, category_id=category.id, author_id=int(current_user["id"])
     )
 
-    session.add(db_course)
-    session.commit()
-    session.refresh(db_course)
+    db.add(db_course)
+    await db.commit()
+    await db.refresh(db_course)
     return {"courses": db_course}
 
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("2/minute")
-def delete_course(
+async def delete_course(
     request: Request,
     course_id: int,
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    is_authorized: bool = Depends(is_teacher_or_admin),
+    is_authorized: Annotated[bool, Depends(is_teacher_or_admin)],
 ) -> None:
     """Delete a course by its ID"""
-    course = session.get(Course, course_id)
+    course = await db.get(Course, course_id)
 
     if not course:
         raise HTTPException(
@@ -95,29 +97,29 @@ def delete_course(
         )
 
     # Ownership check
-    if course.author_id != current_user.get("id"):
+    if str(course.author_id) != current_user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this course",
         )
 
-    session.delete(course)
-    session.commit()
+    await db.delete(course)
+    await db.commit()
     return
 
 
 @router.patch("/{course_id}", response_model=dict[str, CourseBaseSchema])
 @limiter.limit("10/minute")  # Very strict
-def update_course(
+async def update_course(
     request: Request,
     course_id: int,
     course_update: UpdateCourseSchema,
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dict, Depends(current_user_dependency)],
-    is_authorized: bool = Depends(is_teacher_or_admin),
+    is_authorized: Annotated[bool, Depends(is_teacher_or_admin)],
 ) -> dict:
     """Update a course by its ID."""
-    course = session.get(Course, course_id)
+    course = await db.get(Course, course_id)
 
     if not course:
         raise HTTPException(
@@ -125,17 +127,18 @@ def update_course(
         )
 
     # Ownership check
-    if course.author_id != current_user.get("id"):
+    if str(course.author_id) != current_user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to edit this course",
         )
 
     # Apply partial updates
-    course_data = course_update.model_dump(exclude_unset=True)
-    course.sqlmodel_update(course_data)
+    update_data = course_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(course, key, value)
 
-    session.add(course)
-    session.commit()
-    session.refresh(course)
+    db.add(course)
+    await db.commit()
+    await db.refresh(course)
     return {"course": course}

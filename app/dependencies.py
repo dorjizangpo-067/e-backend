@@ -7,15 +7,8 @@ from jwt.exceptions import (
     InvalidSignatureError,
     InvalidTokenError,
 )
-from sqlmodel import Session
 
-from .database import engine
 from .env_loader import settings
-
-
-def get_session() -> Session:  # type: ignore
-    with Session(engine) as session:
-        yield session  # type: ignore
 
 
 def verify_access_token(
@@ -73,7 +66,6 @@ async def is_teacher_or_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Operation not permitted"
         )
-        return False
     return True
 
 

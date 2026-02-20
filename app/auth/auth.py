@@ -3,10 +3,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import current_user_dependency, get_current_user, get_session
+from ..database import get_db
+from ..dependencies import current_user_dependency, get_current_user
 from ..env_loader import settings
 from ..limiter import limiter
 from ..models.users import User
@@ -30,7 +32,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register_user(
     request: Request,
     register_data: UserCreateSchema,
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """
     User registration endpoint <br>
@@ -43,21 +45,21 @@ async def register_user(
 
     if user_form.role == "admin" and user_form.email != settings.admin_email:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You are not Admin"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not AdminYou are not authorized to create an Admin account.",
         )
     # password hashing
     hash_password = func_hash_password(register_data.password)
-    user_form.password = hash_password
+    user_data = register_data.model_dump(exclude={"password"}, exclude_unset=True)
 
     # Mapping UserCreateSchema to User model
     try:
-        user = User(
-            **user_form.model_dump(exclude_unset=True), hashed_password=hash_password
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+        user = User(**user_data, hashed_password=hash_password)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
     except IntegrityError:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "User with this email already exists."},
@@ -71,7 +73,7 @@ async def register_user(
 async def login_user(
     request: Request,
     login_data: UserLoginSchema,
-    session: Annotated[Session, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> JSONResponse:
     """
     User login endpoint <br>
@@ -81,28 +83,15 @@ async def login_user(
     """
     creditals_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"error": "Invalid email or password"},
+        detail="Invalid email or password",
     )
-    # check user is already login or not
-    token_user = get_current_user(
-        request=request, secret_key=settings.secret_key, algorithms=[settings.algorithm]
-    )
-    if token_user is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Mr/Ms.{token_user.get('name')} had already login",
-        )
     statement = select(User).where(User.email == login_data.email)
-    user = session.exec(statement).first()
-    if not user:
-        raise creditals_error
+    result = await db.execute(statement)
+    user = result.scalar_one_or_none()
 
-    # verify password
-    is_valid_password = verify_password(login_data.password, user.hashed_password)
-    if not is_valid_password:
+    # Checking user exist and verifyibg passoward
+    if not user or not verify_password(login_data.password, user.hashed_password):
         raise creditals_error
-
-    response = JSONResponse(content={"message": "Successfully logged in"})
 
     # jwt token creation
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
@@ -110,19 +99,23 @@ async def login_user(
         data={
             "sub": str(user.email),
             "role": str(user.role),
-            "id": user.id,
+            "id": str(user.id),
             "name": (user.name),
         },
         secret_key=settings.secret_key,
         algorithm=settings.algorithm,
         expires_delta=access_token_expires,
     )
+    response = JSONResponse(content={"message": "Successfully logged in"})
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
+        # TODO set to True while Production
+        secure=False,
         samesite="lax",
+        max_age=settings.access_token_expire_minutes * 60,
     )
     request.state.user = user
     return response

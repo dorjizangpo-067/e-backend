@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,24 +7,23 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from .auth import auth
-from .database import create_db_and_tables, engine
+from .database import Base, engine
 from .limiter import custom_rate_limit_handler, limiter
 from .routers import category, course, users
 
 
-@asynccontextmanager  # type: ignore
-async def lifespan(app: FastAPI) -> None:  # type: ignore
-    create_db_and_tables()
-    yield  # type: ignore # App runs here
-    engine.dispose()
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+    await engine.dispose()
 
 
 app = FastAPI(
     lifespan=lifespan,
     title="E-Learning Platform API",
-    description="API for managing courses, users, and content in an e-learning platform.",
-    version="1.0.0",
-    contact={"name": "E-Learning Support", "email": "dorjizangpo75@gmail.com"},
 )
 
 app.state.limiter = limiter
