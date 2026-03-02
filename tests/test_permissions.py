@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.utilits import create_access_token
 from app.env_loader import settings
@@ -8,16 +8,17 @@ from app.models.users import User
 
 
 @pytest.fixture
-def student_headers(session: Session) -> dict[str, str]:
+async def student_headers(session: AsyncSession) -> dict[str, str]:
     user = User(
         name="Student",
+        bio="",
         email="student@example.com",
         role="student",
         hashed_password="pw",
     )
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    await session.commit()
+    await session.refresh(user)
     token = create_access_token(
         data={"sub": user.email, "role": user.role, "id": user.id, "name": user.name},
         secret_key=settings.secret_key,
@@ -28,18 +29,18 @@ def student_headers(session: Session) -> dict[str, str]:
 
 @pytest.mark.asyncio
 async def test_admin_required_endpoint_forbidden(
-    client: AsyncClient, session: Session, student_headers: dict[str, str]
+    client: AsyncClient, session: AsyncSession, student_headers: dict[str, str]
 ) -> None:
     # /categories/create requires admin
     response = await client.post(
-        "/categories/create", json={"name": "Forbidden"}, headers=student_headers
+        "/categories/", json={"name": "Forbidden"}, headers=student_headers
     )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_teacher_required_endpoint_forbidden(
-    client: AsyncClient, session: Session, student_headers: dict[str, str]
+    client: AsyncClient, session: AsyncSession, student_headers: dict[str, str]
 ) -> None:
     # Create category otherwise we get 404 from body before permission check failure?
     # (Checking if permission check is indeed bypassed or if verify order is weird)
@@ -47,7 +48,7 @@ async def test_teacher_required_endpoint_forbidden(
 
     category = Category(name="Math")
     session.add(category)
-    session.commit()
+    await session.commit()
 
     # /courses/ create requires teacher or admin
     course_data = {

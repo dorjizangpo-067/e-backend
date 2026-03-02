@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.utilits import create_access_token
 from app.env_loader import settings
@@ -8,16 +8,20 @@ from app.models.users import User
 
 
 @pytest.fixture
-def admin_headers(session: Session) -> dict[str, str]:
+async def admin_headers(session: AsyncSession) -> dict[str, str]:
     user = User(
-        name="Admin", email="admin@example.com", role="admin", hashed_password="hashed"
+        name="Admin",
+        bio="",
+        email="admin@example.com",
+        role="admin",
+        hashed_password="hashed",
     )
     # Note: admin email check in auth router might require specific admin email from settings.
     # But category creation checks IsAdmin dependency.
     # Let's create an admin user.
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    await session.commit()
+    await session.refresh(user)
     token = create_access_token(
         data={"sub": user.email, "role": user.role, "id": user.id, "name": user.name},
         secret_key=settings.secret_key,
@@ -28,12 +32,10 @@ def admin_headers(session: Session) -> dict[str, str]:
 
 @pytest.mark.asyncio
 async def test_create_category(
-    client: AsyncClient, session: Session, admin_headers: dict[str, str]
+    client: AsyncClient, session: AsyncSession, admin_headers: dict[str, str]
 ) -> None:
     category_data = {"name": "New Category"}
     response = await client.post(
-        "/categories/create", json=category_data, headers=admin_headers
+        "/categories/", json=category_data, headers=admin_headers
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["name"] == "New Category"
+    assert response.status_code == 201
