@@ -1,9 +1,10 @@
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     postgresql_url: str
-    secret_key: str
+    secret_key: SecretStr
     algorithm: str
     access_token_expire_minutes: int
     admin_email: str
