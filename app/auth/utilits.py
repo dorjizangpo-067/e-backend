@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from pwdlib import PasswordHash
+from pydantic import SecretStr
 
 hashed_hasdher = PasswordHash.recommended()
 
@@ -17,7 +18,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-    data: dict, secret_key: str, algorithm: str, expires_delta: timedelta | None = None
+    data: dict,
+    secret_key: SecretStr,
+    algorithm: str,
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
@@ -26,4 +30,4 @@ def create_access_token(
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, secret_key, algorithm=algorithm)
+    return jwt.encode(to_encode, secret_key.get_secret_value(), algorithm)

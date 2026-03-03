@@ -1,15 +1,31 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..dependencies import is_admin
+from ..dependencies import current_user_dependency, is_admin
 from ..limiter import limiter
 from ..models.categories import Category
 from ..schemas.category import CategoryBaseSchema
 
 router = APIRouter(prefix="/categories", tags=["categories"])
+
+
+@router.get(
+    "/",
+    status_code=status.HTTP_302_FOUND,
+    response_model=dict[str, list[CategoryBaseSchema]],
+)
+async def get_category(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    is_authorized: Annotated[bool, Depends(current_user_dependency)],
+) -> dict:
+    result = await db.execute(select(Category))
+    categories = result.scalars()
+
+    return {"category": categories}
 
 
 @router.post(

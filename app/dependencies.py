@@ -7,16 +7,17 @@ from jwt.exceptions import (
     InvalidSignatureError,
     InvalidTokenError,
 )
+from pydantic import SecretStr
 
 from .env_loader import settings
 
 
 def verify_access_token(
-    token: str, secret_key: str, algorithms: list[str]
+    token: str, secret_key: SecretStr, algorithms: list[str]
 ) -> dict | None:
     """Verify a JWT access token and return the payload if valid."""
     try:
-        return jwt.decode(token, secret_key, algorithms=algorithms)
+        return jwt.decode(token, secret_key.get_secret_value(), algorithms=algorithms)
     except ExpiredSignatureError:
         return None
     except InvalidSignatureError:
@@ -26,7 +27,7 @@ def verify_access_token(
 
 
 def get_current_user(
-    request: Request, secret_key: str, algorithms: list[str]
+    request: Request, secret_key: SecretStr, algorithms: list[str]
 ) -> dict | None:
     """Get the current user from the JWT token."""
     try:
