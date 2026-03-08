@@ -16,7 +16,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get(
     "/",
     response_model=dict[str, list[UserReadSchema]],
-    status_code=status.HTTP_302_FOUND,
+    status_code=status.HTTP_200_OK,
 )
 @limiter.limit("10/minute")
 async def get_users(
