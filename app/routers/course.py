@@ -1,6 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,20 +24,17 @@ from ..schemas.course import (
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
-@router.get("/", response_model=dict[str, list[ReadCourseSchema]])
+@router.get("/")
 @limiter.limit("5/second")
 @limiter.limit("100/hour")
 async def get_courses(
     request: Request,  # for Limiter to perform
     db: Annotated[AsyncSession, Depends(get_db)],
     is_authorized: Annotated[bool, Depends(current_user_dependency)],
-    limit: Annotated[int, Query(le=25)] = 15,
-    offset: int = 0,
-) -> dict:
+) -> Page[ReadCourseSchema]:
     """Retrieve a list of courses with pagination."""
-    result = await db.execute(select(Course).offset(offset).limit(limit))
-    courses = result.scalars()
-    return {"courses": courses}
+    query = select(Course)
+    return await paginate(db, query)
 
 
 @router.post(

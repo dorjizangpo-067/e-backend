@@ -3,11 +3,12 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from .auth import auth
-from .database import Base, engine
+from .database import engine
 from .limiter import custom_rate_limit_handler, limiter
 from .routers import category, course, users
 
@@ -39,3 +40,6 @@ app.include_router(users.router)
 app.include_router(course.router)
 app.include_router(category.router)
 app.include_router(auth.router)
+
+# add pagination libery
+add_pagination(app)

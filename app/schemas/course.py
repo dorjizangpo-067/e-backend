@@ -12,6 +12,9 @@ class ReadCourseSchema(CourseBaseSchema):
     author_id: int
     category_id: int
 
+    class Config:
+        from_attributes = True
+
 
 class CreateCourseSchema(CourseBaseSchema):
     category: str

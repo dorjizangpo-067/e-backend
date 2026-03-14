@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..dependencies import current_user_dependency, get_current_user
+from ..dependencies import current_user_dependency
 from ..env_loader import settings
 from ..limiter import limiter
 from ..models.users import User
