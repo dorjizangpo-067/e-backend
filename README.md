@@ -36,6 +36,7 @@ This project uses `uv` for dependency management.
 
    ```bash
    uv sync
+   uv add aiosqlite
    ```
 
    This will automatically create a virtual environment (`.venv`) and install all required packages.
@@ -45,7 +46,7 @@ This project uses `uv` for dependency management.
 Create a `.env` file in the root directory:
 
 ```ini
-sqlite_url=sqlite:///database.db
+sqlite_url=sqlite+aiosqlite:///database.db
 secret_key=your-super-secret-key-change-this
 algorithm=HS256
 access_token_expire_minutes=30
